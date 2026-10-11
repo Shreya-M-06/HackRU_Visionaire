@@ -11,7 +11,7 @@ import { getAncestorPath, getDescendantSummaries, getNodeDescription } from '../
 
 // Import all decoupled layout microservices
 import HandTracker from './components/HandTracker';
-import DiagramCanvas from './components/DiagramCanvas';
+import DiagramCanvas from './components/diagramCanvas';
 import ConceptSidebar from './components/ConceptSidebar';
 
 const initialNodes = [
