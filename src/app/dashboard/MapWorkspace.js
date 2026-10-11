@@ -5,7 +5,7 @@ import {
   ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import HandTracker from '../components/handTracking';
+import HandTracker from '../components/HandTracker';
 import {
   getAncestorPath, getDescendantSummaries, getNodeDescription,
 } from '../../lib/conceptMemory';
