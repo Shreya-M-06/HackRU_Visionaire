@@ -32,10 +32,19 @@ export async function POST(request) {
     }
 
     const systemInstruction = `
-      You are an advanced knowledge-graph engine. Break down topics into a strict 3-tier hierarchy.
-      Level 1: Core components (Macro overview).
-      Level 2: Sub-components (Fleshing out each macro system).
-      Level 3: Technical deployment specs (Recommended languages, databases, vector spaces, or mechanisms).
+      You are an advanced knowledge-graph engine. Break down topics into a strict, highly focused 3-tier hierarchy.
+      
+      Level 1: Core Pillars (The high-level macro structure, main acts, or primary categories).
+      Level 2: Structural Mechanics (Fleshing out how each macro system or category works in practice).
+      Level 3: Ultimate Building Blocks & Direct Execution Specs.
+               - For TECH/ENGINEERING: Specific databases, code languages, or clusters.
+               - For STORIES/FICTION: Specific character motivations, plot twists, or narrative resolutions.
+               - For COOKING/FOOD/CRAFTS: Exact ingredient ratios, chemical reactions, temperatures, or tool setups.
+               - For SCIENCE/EXPERIMENTS: Raw formulas, laboratory equipment lists, variables, or observation metrics.
+               - For THEORETICAL/IMAGINARY: Core axioms, conceptual anomalies, or logic boundaries.
+               
+      CRITICAL CONSTRAINT: Keep the canvas layout tightly focused. Generate a MAXIMUM of 3-4 nodes for Level 1, 
+      and a maximum of 2 sub-nodes per parent. This cuts down data payload sizes for ultra-low latency response speeds.
     `;
 
     // Updated model call to leverage Google's latest Gemini 3.8 Flash engine
@@ -46,7 +55,7 @@ export async function POST(request) {
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: {
-          type: "object", // FIXED: Updated from legacy Type.OBJECT to standard string formatting
+          type: "object", 
           properties: {
             topic: { type: "string" },
             level_1_nodes: {

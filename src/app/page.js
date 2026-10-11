@@ -1,15 +1,11 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import {
-  useNodesState,
-  useEdgesState,
-  ReactFlowProvider,
-} from '@xyflow/react';
+import { useNodesState, useEdgesState, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { getAncestorPath, getDescendantSummaries, getNodeDescription } from '../lib/conceptMemory';
 
-// Import all decoupled layout microservices
+// Import your verified modular layout microservices
 import HandTracker from './components/HandTracker';
 import DiagramCanvas from './components/diagramCanvas';
 import ConceptSidebar from './components/ConceptSidebar';
@@ -62,6 +58,7 @@ function makeNode({ id, parentId = null, label, description, position, layer }) 
   };
 }
 
+// Begins the core orchestration workspace component
 function VisionaireWorkspaceContent() {
   const [prompt, setPrompt] = useState('');
   const [topic, setTopic] = useState('');
@@ -74,36 +71,36 @@ function VisionaireWorkspaceContent() {
   const [conversations, setConversations] = useState({});
   const [memorySummaries, setMemorySummaries] = useState({});
 
-  // Core Zoom & Layout States
-  const [allGeneratedData, setAllGeneratedData] = useState(null); // Storage vault for raw Gemini JSON trees
-  const [zoomScale, setZoomScale] = useState(1.0); // Trackpad and webcam scale synchronizer
+  // Core Zoom & Layout Matrix Navigation States
+  const [allGeneratedData, setAllGeneratedData] = useState(null); 
+  const [zoomScale, setZoomScale] = useState(1.0); 
   const [rfInstance, setRfInstance] = useState(null);
 
-  // Fallback state trackers for baseline panning actions
+  // Fallback trackers for baseline react-flow events
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // 1. SEMANTIC INTERACTION LOOP: Re-evaluates visible elements automatically based on viewport zoom scales
+  // DYNAMIC REVEAL CALCULATIONS: Evaluates zoomScale values in real-time to toggle hidden nodes
   const visibleElements = useMemo(() => {
     if (!allGeneratedData) return { nodes: initialNodes, edges: [] };
 
     const filteredNodes = [];
     const filteredEdges = [];
 
-    // TIER 1: Always visible as your high-level system layout
+    // TIER 1: Always rendered into the system view space as the core structural blueprint
     allGeneratedData.level_1_nodes?.forEach((node, index) => {
       filteredNodes.push(makeNode({
         id: node.id, label: node.label, description: node.summary, layer: 1,
-        position: { x: 100 + index * 420, y: 50 },
+        position: { x: 80 + index * 420, y: 40 },
       }));
     });
 
-    // TIER 2: Dynamically unmasks sub-components when zoom scale moves closer than 1.2x scale
+    // TIER 2: Unmasks sub-components smoothly only when camera view scale passes 1.2x zoom
     if (zoomScale >= 1.2) {
       allGeneratedData.level_2_nodes?.forEach((node, index) => {
         filteredNodes.push(makeNode({
           id: node.id, parentId: node.parentId, label: node.label, description: node.summary, layer: 2,
-          position: { x: 120 + index * 340, y: 320 },
+          position: { x: 80 + index * 340, y: 320 },
         }));
         filteredEdges.push({
           id: `e-${node.parentId}-${node.id}`, source: node.parentId, target: node.id, animated: true,
@@ -112,12 +109,12 @@ function VisionaireWorkspaceContent() {
       });
     }
 
-    // TIER 3: Unmasks full code specs and database recommendations when camera scale passes 2.0x deep zoom
+    // TIER 3: Unmasks full specs and code languages at deep zoom thresholds (2.0x+)
     if (zoomScale >= 2.0) {
       allGeneratedData.level_3_nodes?.forEach((node, index) => {
         filteredNodes.push(makeNode({
           id: node.id, parentId: node.parentId, label: node.label, description: node.detail, layer: 3,
-          position: { x: 140 + index * 300, y: 600 },
+          position: { x: 80 + index * 280, y: 580 },
         }));
         filteredEdges.push({
           id: `e-${node.parentId}-${node.id}`, source: node.parentId, target: node.id,
@@ -129,14 +126,12 @@ function VisionaireWorkspaceContent() {
     return { nodes: filteredNodes, edges: filteredEdges };
   }, [allGeneratedData, zoomScale]);
 
-  // Hook into currently tracked visible items array to avoid conversational component context drops
   const selectedNode = useMemo(
     () => visibleElements.nodes.find((node) => node.id === selectedNodeId) || null,
     [visibleElements.nodes, selectedNodeId]
   );
   const selectedMessages = selectedNode ? (conversations[selectedNode.id] || []) : [];
-
-  // 2. Drive viewport zooming smoothly via computer vision webcam hand feed
+  // Real-time computer vision hand tracking stream adapter coordinates
   const handleHandMovement = ({ pinchDistance }) => {
     if (!rfInstance) return;
 
@@ -144,26 +139,26 @@ function VisionaireWorkspaceContent() {
     if (targetZoom < 0.6) targetZoom = 0.6;
     if (targetZoom > 3.2) targetZoom = 3.2;
 
-    setZoomScale(targetZoom); // Triggers real-time node reveal filter recalculations!
+    setZoomScale(targetZoom); // Updates dynamic filter view boundary states
 
     const currentViewport = rfInstance.getViewport();
     rfInstance.setViewport(
       { x: currentViewport.x, y: currentViewport.y, zoom: targetZoom },
-      { duration: 80 } // Fast interpolation removes layout jittering
+      { duration: 80 }
     );
   };
 
-  // 3. Trackpad Pinching Listener Integration
+  // Trackpad Pinching / Wheel Scrolling Synchronizer Loop
   const handleViewportChange = (viewport) => {
-    setZoomScale(viewport.zoom); // Syncs manual hardware scaling changes back to reveal loops
+    setZoomScale(viewport.zoom); // Syncs manual trackpad pinches back to reveal layers
   };
 
-  // 4. Box Click Camera Centering Automation
+  // Target Node Box Click Zoom-Reveal Automation
   const handleNodeClick = (event, node) => {
     if (!rfInstance || node.id === 'start') return;
     setSelectedNodeId(node.id);
 
-    // Pull focus forward and zoom map automatically depending on layer clicked
+    // Zoom camera system closer into active layer selections to reveal nested node paths
     const targetZoom = node.data?.layer === 1 ? 1.4 : 2.3;
     setZoomScale(targetZoom);
 
@@ -188,10 +183,10 @@ function VisionaireWorkspaceContent() {
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || 'Could not generate the map.');
 
-      setAllGeneratedData(data); // Safely locked in data vault memory
+      setAllGeneratedData(data); // Locks raw data into vault memory safely
       setTopic(data.topic || prompt.trim());
       setSelectedNodeId(null); setConversations({}); setMemorySummaries({});
-      setZoomScale(1.0); // Resets viewport scale to standard level-1 macros
+      setZoomScale(1.0); // Reset scale views back to macro settings
 
       if (rfInstance) {
         setTimeout(() => rfInstance.fitView({ duration: 400 }), 120);
