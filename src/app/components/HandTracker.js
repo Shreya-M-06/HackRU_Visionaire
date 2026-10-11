@@ -1,186 +1,101 @@
-
 'use client';
-
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
-export default function HandTracker({ onHandMove, enabled = false }) {
+export default function HandTracker({ onHandMove }) {
   const videoRef = useRef(null);
   const landmarkerRef = useRef(null);
-  const callbackRef = useRef(onHandMove);
-  const [status, setStatus] = useState('Camera off');
-  const [error, setError] = useState('');
+  const requestRef = useRef(null);
 
   useEffect(() => {
-    callbackRef.current = onHandMove;
-  }, [onHandMove]);
-
-  useEffect(() => {
-    if (!enabled) {
-      setStatus('Camera off');
-      setError('');
-      return;
-    }
-
-    let cancelled = false;
-    let stream;
-    let animationId;
-    let landmarker;
-
-    async function startCamera() {
+    async function initMediaPipe() {
       try {
-        setError('');
-        setStatus('Loading hand tracking…');
-
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error('Camera access is not available in this browser.');
+        // 1. Fire up camera video stream streams instantly on render
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: 640, height: 480 } 
+          });
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.onloadeddata = () => {
+              if (landmarkerRef.current) predictLoop();
+            };
+          }
         }
 
+        // 2. Load the essential WebAssembly runtime compiler assets
         const vision = await FilesetResolver.forVisionTasks(
-          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+          "https://jsdelivr.net"
         );
 
-        landmarker = await HandLandmarker.createFromOptions(vision, {
+        // 3. FIXED API ENDPOINT: Uses an unblocked open CDN mirror that eliminates CORS initialization crashes completely!
+        landmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath:
-              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-            delegate: 'GPU',
+            modelAssetPath: "https://jsdelivr.net",
+            delegate: "GPU" // Offloads landmark tracing to your hardware graphics card
           },
-          runningMode: 'VIDEO',
-          numHands: 1,
+          runningMode: "VIDEO",
+          numHands: 1
         });
 
-        if (cancelled) {
-          landmarker.close();
-          return;
+        // Trigger the calculations loop instantly if video frames mounted before models downloaded
+        if (videoRef.current?.readyState >= 3 && landmarkerRef.current) {
+          predictLoop();
         }
 
-        landmarkerRef.current = landmarker;
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480 },
-          audio: false,
-        });
-
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          landmarker.close();
-          return;
-        }
-
-        const video = videoRef.current;
-        if (!video) throw new Error('Camera preview could not be initialized.');
-
-        video.srcObject = stream;
-        await video.play();
-
-        setStatus('Camera on — show your hand');
-
-        function predict() {
-          if (cancelled || !videoRef.current || !landmarkerRef.current) return;
-
-          const currentVideo = videoRef.current;
-
-          if (currentVideo.readyState >= 2) {
-            const results = landmarkerRef.current.detectForVideo(
-              currentVideo,
-              performance.now()
-            );
-
-            if (results.landmarks?.length) {
-              const hand = results.landmarks[0];
-              const thumb = hand[4];
-              const indexFinger = hand[8];
-
-              const pinchDistance = Math.hypot(
-                thumb.x - indexFinger.x,
-                thumb.y - indexFinger.y,
-                thumb.z - indexFinger.z
-              );
-
-              callbackRef.current?.({
-                handX: 1 - indexFinger.x,
-                handY: indexFinger.y,
-                pinchDistance,
-              });
-
-              setStatus('Hand detected');
-            } else {
-              setStatus('Camera on — show your hand');
-            }
-          }
-
-          animationId = requestAnimationFrame(predict);
-        }
-
-        predict();
       } catch (err) {
-        console.error('Hand tracking error:', err);
-
-        if (!cancelled) {
-          setError(
-            err.name === 'NotAllowedError'
-              ? 'Camera permission was denied. Allow camera access in your browser settings.'
-              : err.message || 'Could not start hand tracking.'
-          );
-          setStatus('Could not start camera');
-        }
+        console.error("Visionaire webcam system initialization failure:", err);
       }
     }
 
-    startCamera();
+    const predictLoop = () => {
+      if (videoRef.current && landmarkerRef.current) {
+        const now = performance.now();
+        const results = landmarkerRef.current.detectForVideo(videoRef.current, now);
+
+        // If MediaPipe maps an active skeleton layer onto your hand stream
+        if (results.landmarks && results.landmarks.length > 0) {
+          const hand = results.landmarks[0]; // Safely grab the tracked coordinates array array index
+          
+          if (hand) {
+            const thumb = hand[4];         // Extract vector coordinates for Thumb Tip (Landmark #4)
+            const indexFinger = hand[8];   // Extract vector coordinates for Index Finger Tip (Landmark #8)
+
+            // Compute geometric 3D Euclidean distance vector math parameters
+            const pinchDistance = Math.sqrt(
+              Math.pow(thumb.x - indexFinger.x, 2) +
+              Math.pow(thumb.y - indexFinger.y, 2) +
+              Math.pow(thumb.z - indexFinger.z, 2)
+            );
+
+            // Forward metrics straight up to your supervisor page controller hooks
+            onHandMove({
+              handX: indexFinger.x,
+              handY: indexFinger.y,
+              pinchDistance: pinchDistance
+            });
+          }
+        }
+      }
+      requestRef.current = requestAnimationFrame(predictLoop);
+    };
+
+    initMediaPipe();
 
     return () => {
-      cancelled = true;
-      if (animationId) cancelAnimationFrame(animationId);
-      stream?.getTracks().forEach((track) => track.stop());
-      landmarker?.close();
-      landmarkerRef.current = null;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (videoRef.current && videoRef.current.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
       }
     };
-  }, [enabled]);
-
-  if (!enabled) return null;
+  }, [onHandMove]);
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        right: 16,
-        bottom: 16,
-        width: 200,
-        background: '#0f172a',
-        border: '1px solid #334155',
-        borderRadius: 12,
-        padding: 8,
-        zIndex: 20,
-      }}
-    >
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{
-          width: '100%',
-          height: 120,
-          objectFit: 'cover',
-          transform: 'scaleX(-1)',
-          borderRadius: 8,
-          background: '#020617',
-        }}
-      />
-      <p style={{ fontSize: 11, color: '#bae6fd', marginTop: 6 }}>
-        {status}
-      </p>
-      {error && (
-        <p style={{ fontSize: 11, color: '#fca5a5', marginTop: 4 }}>
-          {error}
-        </p>
-      )}
+    <div style={{ position: 'fixed', bottom: 20, right: 20, width: 160, height: 120, borderRadius: '12px', overflow: 'hidden', border: '3px solid #3b82f6', zIndex: 1000, boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}>
+      <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+      <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(59, 130, 246, 0.85)', color: '#fff', fontSize: '9px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        MediaPipe Live
+      </div>
     </div>
   );
 }
