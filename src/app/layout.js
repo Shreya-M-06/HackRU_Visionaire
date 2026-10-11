@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 
 // 1. Customized title header properties for HackRU
 export const metadata = {
-  title: "Visionaire Canvas AI",
+  title: "Visionaire",
   description: "HackRU Interactive On-Device Gesture Concept Map",
 };
 
