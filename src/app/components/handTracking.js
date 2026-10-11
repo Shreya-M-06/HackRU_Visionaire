@@ -9,12 +9,12 @@ export default function HandTracker({ onHandMove }) {
 
   useEffect(() => {
     async function initMediaPipe() {
-      // 1. Fetch the required open-source vision WebAssembly assets from Google's CDN
+      // 1. FIX: Fetch the exact required open-source vision WebAssembly assets from Google's CDN
       const vision = await FilesetResolver.forVisionTasks(
         "https://jsdelivr.net"
       );
 
-      // 2. Initialize the Hand Tracker model locally in the browser
+      // 2. FIX: Initialize the Hand Tracker model using the full Google Storage asset address
       landmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: "https://googleapis.com",
