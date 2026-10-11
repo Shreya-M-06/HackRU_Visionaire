@@ -3,6 +3,26 @@ import { GoogleGenAI } from '@google/genai';
 // Initialize the Gemini client. It automatically pulls your key from .env.local
 const ai = new GoogleGenAI();
 
+
+async function generateWithRetry(options, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await ai.models.generateContent(options);
+    } catch (error) {
+      const status = error.status ?? error.code;
+      const retryable = [429, 500, 502, 503, 504].includes(Number(status));
+
+      if (!retryable || attempt === maxAttempts) {
+        throw error;
+      }
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, attempt * 1500)
+      );
+    }
+  }
+}
+
 export async function POST(request) {
   try {
     const { prompt } = await request.json();
@@ -19,7 +39,7 @@ export async function POST(request) {
     `;
 
     // Updated model call to leverage Google's latest Gemini 3.8 Flash engine
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry({
       model: 'gemini-3.8-flash', 
       contents: prompt,
       config: {
@@ -76,8 +96,20 @@ export async function POST(request) {
     const graphData = JSON.parse(response.text);
     return new Response(JSON.stringify(graphData), { status: 200 });
 
-  } catch (error) {
-    console.error('Gemini API Error:', error);
-    return new Response(JSON.stringify({ error: 'Internal Server Error', details: error.message }), { status: 500 });
-  }
+  
+} catch (error) {
+  console.error('Gemini API Error:', error);
+
+  const status = Number(error.status ?? error.code);
+  const temporary = [429, 500, 502, 503, 504].includes(status);
+
+  return Response.json(
+    {
+      error: temporary
+        ? 'The AI service is temporarily unavailable. Please try again shortly.'
+        : 'Could not generate the concept map.',
+    },
+    { status: temporary ? 503 : 500 }
+  );
+}
 }
