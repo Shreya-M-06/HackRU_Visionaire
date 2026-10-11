@@ -7,6 +7,7 @@ export function getNodeDescription(node) {
 export function getParentId(node) {
   return node?.data?.parentId || null;
 }
+// Get the path from the root to the specified node, including the node itself.
 
 export function getAncestorPath(nodeId, nodes) {
   const byId = new Map(nodes.map((node) => [node.id, node]));
