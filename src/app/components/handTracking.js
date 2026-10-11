@@ -9,58 +9,74 @@ export default function HandTracker({ onHandMove }) {
 
   useEffect(() => {
     async function initMediaPipe() {
-      // 1. FIX: Fetch the exact required open-source vision WebAssembly assets from Google's CDN
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://jsdelivr.net"
-      );
-
-      // 2. FIX: Initialize the Hand Tracker model using the full Google Storage asset address
-      landmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://googleapis.com",
-          delegate: "GPU" // Utilizes the user's hardware graphics card for smooth frame rates
-        },
-        runningMode: "VIDEO",
-        numHands: 1
-      });
-
-      // 3. Request webcam video stream permissions
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.addEventListener('loadeddata', predictLoop);
+      try {
+        // STEP A: Request camera access IMMEDIATELY so the browser permission pop-up appears instantly
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: 640, height: 480 } 
+          });
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.onloadeddata = () => {
+              if (landmarkerRef.current) predictLoop();
+            };
+          }
         }
+
+        // STEP B: Securely fetch the compiled vision WebAssembly assets from the CDN
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://jsdelivr.net"
+        );
+
+        // STEP C: Initialize the machine learning framework locally on the GPU
+        landmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "https://googleapis.com",
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numHands: 1
+        });
+
+        // Trigger the monitoring frame loop if the video stream mounted first
+        if (videoRef.current?.readyState >= 3) {
+          predictLoop();
+        }
+
+      } catch (err) {
+        console.error("Visionaire tracking initialization error:", err);
       }
     }
 
-    // 4. Real-time vision deduction loop
+    // Real-time tracking coordination logic
     const predictLoop = () => {
       if (videoRef.current && landmarkerRef.current) {
         const now = performance.now();
         const results = landmarkerRef.current.detectForVideo(videoRef.current, now);
 
-        // If a hand is visible in the webcam window frame
+        // If a skeleton tracking overlay maps onto an active hand stream
         if (results.landmarks && results.landmarks.length > 0) {
+          // Extract the direct collection layout array 
           const hand = results.landmarks[0];
           
-          // Index Finger Tip (Landmark #8) & Thumb Tip (Landmark #4)
-          const thumb = hand[4];
-          const indexFinger = hand[8];
+          if (hand && hand[4] && hand[8]) {
+            const thumb = hand[4];         // Precise Thumb Tip tracking vector position
+            const indexFinger = hand[8];   // Precise Index Finger Tip tracking vector position
 
-          // Compute geometric distance (3D Euclidean Distance) for Pinch Gestures
-          const pinchDistance = Math.sqrt(
-            Math.pow(thumb.x - indexFinger.x, 2) +
-            Math.pow(thumb.y - indexFinger.y, 2) +
-            Math.pow(thumb.z - indexFinger.z, 2)
-          );
+            // Compute the real-time distance between your finger tips
+            const pinchDistance = Math.sqrt(
+              Math.pow(thumb.x - indexFinger.x, 2) +
+              Math.pow(thumb.y - indexFinger.y, 2) +
+              Math.pow(thumb.z - indexFinger.z, 2)
+            );
 
-          // Pass structural tracking coordinates up to the Visionaire interactive canvas dashboard
-          onHandMove({
-            handX: indexFinger.x,        // Hand horizontal tracking location (0 to 1)
-            handY: indexFinger.y,        // Hand vertical tracking location (0 to 1)
-            pinchDistance: pinchDistance // Small number = fingers closed, large number = fingers wide open
-          });
+            // Stream coordinates straight up to your master page controller hooks
+            onHandMove({
+              handX: indexFinger.x,
+              handY: indexFinger.y,
+              pinchDistance: pinchDistance
+            });
+          }
         }
       }
       requestRef.current = requestAnimationFrame(predictLoop);
@@ -68,7 +84,7 @@ export default function HandTracker({ onHandMove }) {
 
     initMediaPipe();
 
-    // Clean up tracking loops and camera usage if component unmounts
+    // Safely turn off stream connections and trackers if views shift
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       if (videoRef.current && videoRef.current.srcObject) {
