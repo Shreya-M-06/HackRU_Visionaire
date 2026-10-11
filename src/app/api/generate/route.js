@@ -20,7 +20,7 @@ export async function POST(request) {
 
     // Force Gemini to output a strict JSON structure matching your canvas layout cards
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
         systemInstruction,
