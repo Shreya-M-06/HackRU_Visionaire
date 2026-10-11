@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 
 // Initialize the Gemini client. It automatically pulls your key from .env.local
 const ai = new GoogleGenAI();
@@ -18,51 +18,51 @@ export async function POST(request) {
       Level 3: Technical deployment specs (Recommended languages, databases, vector spaces, or mechanisms).
     `;
 
-    // Force Gemini to output a strict JSON structure matching your canvas layout cards
+    // Updated model call to leverage Google's latest Gemini 3.8 Flash engine
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-3.8-flash', 
       contents: prompt,
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: {
-          type: Type.OBJECT,
+          type: "object", // FIXED: Updated from legacy Type.OBJECT to standard string formatting
           properties: {
-            topic: { type: Type.STRING },
+            topic: { type: "string" },
             level_1_nodes: {
-              type: Type.ARRAY,
+              type: "array",
               items: {
-                type: Type.OBJECT,
+                type: "object",
                 properties: {
-                  id: { type: Type.STRING },
-                  label: { type: Type.STRING },
-                  summary: { type: Type.STRING }
+                  id: { type: "string" },
+                  label: { type: "string" },
+                  summary: { type: "string" }
                 },
                 required: ['id', 'label', 'summary']
               }
             },
             level_2_nodes: {
-              type: Type.ARRAY,
+              type: "array",
               items: {
-                type: Type.OBJECT,
+                type: "object",
                 properties: {
-                  id: { type: Type.STRING },
-                  parentId: { type: Type.STRING },
-                  label: { type: Type.STRING },
-                  summary: { type: Type.STRING }
+                  id: { type: "string" },
+                  parentId: { type: "string" },
+                  label: { type: "string" },
+                  summary: { type: "string" }
                 },
                 required: ['id', 'parentId', 'label', 'summary']
               }
             },
             level_3_nodes: {
-              type: Type.ARRAY,
+              type: "array",
               items: {
-                type: Type.OBJECT,
+                type: "object",
                 properties: {
-                  id: { type: Type.STRING },
-                  parentId: { type: Type.STRING },
-                  label: { type: Type.STRING },
-                  detail: { type: Type.STRING }
+                  id: { type: "string" },
+                  parentId: { type: "string" },
+                  label: { type: "string" },
+                  detail: { type: "string" }
                 },
                 required: ['id', 'parentId', 'label', 'detail']
               }
